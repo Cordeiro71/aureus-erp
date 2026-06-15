@@ -1,0 +1,19 @@
+<?php
+
+return [
+    'header-actions' => [
+        'delete' => [
+            'notification' => [
+                'success' => [
+                    'title' => 'Grupo de impostos excluído',
+                    'body'  => 'O Grupo de impostos foi excluído com sucesso.',
+                ],
+
+                'error' => [
+                    'title' => 'Grupo de impostos could não be excluído',
+                    'body'  => 'The grupo de impostos cannot be deleted because it is currently in use.',
+                ],
+            ],
+        ],
+    ],
+];

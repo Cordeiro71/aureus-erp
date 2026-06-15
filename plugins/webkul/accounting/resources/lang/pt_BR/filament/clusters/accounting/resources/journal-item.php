@@ -1,0 +1,97 @@
+<?php
+
+return [
+    'title' => 'Diário Itens',
+
+    'navigation' => [
+        'title' => 'Diário Itens',
+    ],
+
+    'table' => [
+        'total'   => 'Total',
+        'columns' => [
+            'number'          => 'Number',
+            'date'            => 'Data',
+            'account'         => 'Conta',
+            'partner'         => 'Parceiro',
+            'label'           => 'Rótulo',
+            'reference'       => 'Referência',
+            'journal'         => 'Diário',
+            'debit'           => 'Débito',
+            'credit'          => 'Crédito',
+            'balance'         => 'Saldo',
+            'currency'        => 'Moeda',
+            'company'         => 'Empresa',
+            'status'          => 'Status',
+            'amount-currency' => 'Moeda do valor',
+            'amount-residual' => 'Valor residual',
+            'reconciled'      => 'Conciliado',
+            'due-date'        => 'Data de vencimento',
+        ],
+
+        'groups' => [
+            'journal-entry' => 'Lançamento contábil',
+            'account'       => 'Conta',
+            'partner'       => 'Parceiro',
+            'journal'       => 'Diário',
+            'date'          => 'Data',
+            'invoice-date'  => 'Fatura Data',
+            'matching'      => 'Matching',
+            'status'        => 'Status',
+            'company'       => 'Empresa',
+        ],
+
+        'filters' => [
+            'number'          => 'Number',
+            'label'           => 'Rótulo',
+            'reference'       => 'Referência',
+            'matching-number' => 'Matching Number',
+            'account'         => 'Conta',
+            'partner'         => 'Parceiro',
+            'journal'         => 'Diário',
+            'currency'        => 'Moeda',
+            'company'         => 'Empresa',
+            'date'            => 'Data',
+            'invoice-date'    => 'Fatura Data',
+            'due-date'        => 'Data de vencimento',
+            'discount-date'   => 'Desconto Data',
+            'debit'           => 'Débito',
+            'credit'          => 'Crédito',
+            'balance'         => 'Saldo',
+            'amount-currency' => 'Moeda do valor',
+            'amount-residual' => 'Valor residual',
+            'quantity'        => 'Quantidade',
+            'price-unit'      => 'Preço Unidade',
+            'discount'        => 'Desconto',
+            'reconciled'      => 'Conciliado',
+            'imported'        => 'Imported',
+            'down-payment'    => 'Pagamento antecipado',
+            'created-at'      => 'Criado em',
+            'updated-at'      => 'Atualizado em',
+        ],
+
+        'saved-filters' => [
+            'label'         => 'Saved Filtros',
+            'unposted'      => 'Não lançado',
+            'posted'        => 'Lançado',
+            'to-check'      => 'Para Check',
+            'unreconciled'  => 'Unreconciled',
+            'with-residual' => 'Com Residual',
+            'sales'         => 'Vendas',
+            'purchases'     => 'Compras',
+            'bank'          => 'Banco',
+            'cash'          => 'Cash',
+            'credit'        => 'Crédito',
+            'miscellaneous' => 'Miscellaneous',
+            'payable'       => 'Payable',
+            'receivable'    => 'Receivable',
+            'pl-accounts'   => 'P&L Contas',
+        ],
+
+        'toolbar-actions' => [
+            'export' => [
+                'label' => 'Exportar',
+            ],
+        ],
+    ],
+];

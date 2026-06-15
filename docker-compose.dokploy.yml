@@ -1,0 +1,51 @@
+########################################################################
+# AureusERP — Docker Compose for Dokploy (Application: Compose type)
+#
+# Usage in Dokploy:
+#   1. Create a new Application → Type: Docker Compose
+#   2. Set the Compose File to: docker-compose.dokploy.yml
+#   3. Create a MySQL database service in Dokploy first, then link it.
+#   4. Set the environment variables below in the Dokploy UI.
+########################################################################
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80"
+    environment:
+      APP_NAME: "AureusERP"
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_URL: ${APP_URL:-http://localhost}
+      APP_LOCALE: ${APP_LOCALE:-pt_BR}
+      APP_CURRENCY: ${APP_CURRENCY:-BRL}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
+      # Database — point these at your Dokploy MySQL service
+      DB_CONNECTION: mysql
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-aureus}
+      DB_USERNAME: ${DB_USERNAME:-aureus}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      # Admin account created on first boot
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-password}
+      # Optional Redis (Dokploy Redis service)
+      REDIS_HOST: ${REDIS_HOST:-}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      - aureus-storage:/var/www/aureuserp/storage
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+
+volumes:
+  aureus-storage:
