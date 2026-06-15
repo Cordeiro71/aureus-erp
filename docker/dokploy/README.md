@@ -15,11 +15,26 @@ banco de dados separado.
 | **Type**      | Docker Compose                         |
 | **Name**      | aureus-erp                             |
 | **Source**    | GitHub → `Cordeiro71/aureus-erp`       |
-| **Port**      | 80                                     |
 
 O Dokploy detecta o `docker-compose.yml` automaticamente.
 
-### 2. Variáveis de ambiente (opcionais — tudo tem defaults)
+### 2. Configurar o domínio (IMPORTANTE)
+
+Na aba **Domains** da aplicação:
+
+| Campo          | Valor                |
+|----------------|----------------------|
+| **Service**    | `app`                |
+| **Port**       | **80** (NÃO 8000!)   |
+| **Domain**     | `erp.seudominio.com` |
+
+Ative **Let's Encrypt** para HTTPS automático.
+
+> ⚠️ A porta deve ser **80** (porta interna do container onde o Nginx
+> escuta), e não 8000. O Dokploy conecta o Traefik diretamente ao
+> container via a rede `dokploy-network`.
+
+### 3. Variáveis de ambiente (opcionais — tudo tem defaults)
 
 Na aba **Environment Variables**, recomenda-se ajustar:
 
@@ -31,12 +46,7 @@ DB_PASSWORD=trocar-esta-senha
 DB_ROOT_PASSWORD=trocar-esta-senha-root
 ```
 
-### 3. Domínio + SSL
-
-Na aba **Domains**: adicione `erp.seudominio.com` e ative **Let's Encrypt**
-para HTTPS automático (Dokploy/Traefik cuida do certificado).
-
-Clique em **Deploy**.
+### 4. Deploy
 
 ## O que acontece no primeiro boot
 
