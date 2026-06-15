@@ -118,7 +118,7 @@ COPY docker/production/php.ini /etc/php/${PHP_VERSION}/cli/conf.d/99-aureus.ini
 COPY docker/production/php-fpm.conf /etc/php/${PHP_VERSION}/fpm/pool.d/www.conf
 
 RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
-COPY docker/production/nginx.conf /etc/nginx/conf.d/aureus.conf
+COPY docker/dokploy/nginx.conf /etc/nginx/conf.d/aureus.conf
 
 COPY docker/dokploy/supervisord.conf /etc/supervisor/conf.d/aureus.conf
 
@@ -134,10 +134,10 @@ RUN chown -R www-data:www-data /var/www/aureuserp /var/log/aureus \
 COPY docker/dokploy/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-EXPOSE 80
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-    CMD curl -fsS http://127.0.0.1/health || exit 1
+    CMD curl -fsS http://127.0.0.1:8080/health || exit 1
 
 ENTRYPOINT ["bash", "/usr/local/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

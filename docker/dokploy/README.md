@@ -25,14 +25,13 @@ Na aba **Domains** da aplicação:
 | Campo          | Valor                |
 |----------------|----------------------|
 | **Service**    | `app`                |
-| **Port**       | **80** (NÃO 8000!)   |
+| **Port**       | **8080**             |
 | **Domain**     | `erp.seudominio.com` |
 
 Ative **Let's Encrypt** para HTTPS automático.
 
-> ⚠️ A porta deve ser **80** (porta interna do container onde o Nginx
-> escuta), e não 8000. O Dokploy conecta o Traefik diretamente ao
-> container via a rede `dokploy-network`.
+> ⚠️ A porta deve ser **8080** (porta interna do container onde o Nginx
+> escuta). O Dokploy conecta o Traefik ao container automaticamente.
 
 ### 3. Variáveis de ambiente (opcionais — tudo tem defaults)
 

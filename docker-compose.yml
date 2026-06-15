@@ -4,12 +4,8 @@
 # Dokploy detects this file automatically and runs:
 #   docker compose -f ./docker-compose.yml up -d --build
 #
-# How Dokploy routing works:
-#   - Traefik (Dokploy's reverse proxy) sits on the `dokploy-network`
-#   - Our app joins that network so Traefik can reach it directly
-#   - We use `expose` (NOT `ports`) so we don't conflict with Traefik's
-#     host port 80
-#   - In Dokploy UI → Domains: select service "app", port "80"
+# App listens on port 8080 (avoids conflicts with other Dokploy apps).
+# In Dokploy UI → Domains: select service "app", port "8080".
 #
 # Local development: use docker-compose.sail.yml instead.
 ########################################################################
@@ -19,8 +15,8 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    expose:
-      - "80"
+    ports:
+      - "8080"
     environment:
       # Application
       APP_NAME: ${APP_NAME:-AureusERP}
@@ -49,14 +45,11 @@ services:
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-hello@example.com}
     volumes:
       - aureus-storage:/var/www/aureuserp/storage
-    networks:
-      - dokploy-network
-      - internal
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/health"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
       interval: 30s
       timeout: 5s
       start_period: 120s
@@ -73,19 +66,12 @@ services:
       MYSQL_ROOT_HOST: "%"
     volumes:
       - aureus-mysql:/var/lib/mysql
-    networks:
-      - internal
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 40s
-
-networks:
-  dokploy-network:
-    external: true
-  internal:
 
 volumes:
   aureus-storage:
