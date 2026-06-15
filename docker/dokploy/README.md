@@ -1,107 +1,83 @@
 # AureusERP no Dokploy
 
-Este guia torna o AureusERP **plug-and-play** no [Dokploy](https://dokploy.com).
-O `Dockerfile` na raiz do projeto compila a partir do **código-fonte local**
-(suas traduções e personalizações são incluídas na imagem).
+O `docker-compose.yml` na raiz do projeto sobe **aplicação + MySQL** juntos.
+Basta conectar o repositório no Dokploy e clicar em Deploy — sem configurar
+banco de dados separado.
 
-## Pré-requisitos no Dokploy
+## Deploy rápido (3 passos)
 
-1. Um servidor com Dokploy instalado.
-2. Um domínio/apontamento DNS configurado (ex: `erp.seudominio.com`).
+### 1. Criar a aplicação no Dokploy
 
----
+**Applications → Create**
 
-## Opção A — Aplicação via Dockerfile (recomendado)
+| Campo         | Valor                                  |
+|---------------|----------------------------------------|
+| **Type**      | Docker Compose                         |
+| **Name**      | aureus-erp                             |
+| **Source**    | GitHub → `Cordeiro71/aureus-erp`       |
+| **Port**      | 80                                     |
 
-### 1. Criar o banco de dados MySQL
+O Dokploy detecta o `docker-compose.yml` automaticamente.
 
-No painel do Dokploy: **Databases → MySQL → Create**.
+### 2. Variáveis de ambiente (opcionais — tudo tem defaults)
 
-Anote os dados gerados:
-- **Host**, **Port**, **Database name**, **Username**, **Password**
-
-Crie o banco manualmente (via phpMyadro/Dokploy) com:
-```sql
-CREATE DATABASE aureus CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-### 2. Criar a aplicação
-
-No painel do Dokploy: **Applications → Create**.
-
-| Campo              | Valor                                      |
-|--------------------|--------------------------------------------|
-| **Type**           | Dockerfile                                 |
-| **Name**           | aureus-erp                                 |
-| **Source**         | GitHub (seu repositório)                   |
-| **Port**           | 80                                         |
-| **Build Path**     | `/` (raiz)                                 |
-
-### 3. Variáveis de ambiente
-
-Na aba **Environment Variables** da aplicação, adicione:
+Na aba **Environment Variables**, recomenda-se ajustar:
 
 ```env
-APP_NAME=AureusERP
-APP_ENV=production
-APP_DEBUG=false
 APP_URL=https://erp.seudominio.com
-APP_LOCALE=pt_BR
-APP_CURRENCY=BRL
-APP_TIMEZONE=America/Sao_Paulo
-
-DB_CONNECTION=mysql
-DB_HOST=<host-do-mysql-do-dokploy>
-DB_PORT=3306
-DB_DATABASE=aureus
-DB_USERNAME=<usuario-do-mysql>
-DB_PASSWORD=<senha-do-mysql>
-
-ADMIN_NAME=Administrador
 ADMIN_EMAIL=admin@suaempresa.com
 ADMIN_PASSWORD=trocar-esta-senha
+DB_PASSWORD=trocar-esta-senha
+DB_ROOT_PASSWORD=trocar-esta-senha-root
 ```
 
-### 4. Domínio e SSL
+### 3. Domínio + SSL
 
-Na aba **Domains**, adicione `erp.seudominio.com` e ative **Let's Encrypt**
-para SSL automático (Dokploy/Traefik cuida do HTTPS).
+Na aba **Domains**: adicione `erp.seudominio.com` e ative **Let's Encrypt**
+para HTTPS automático (Dokploy/Traefik cuida do certificado).
 
-### 5. Deploy
+Clique em **Deploy**.
 
-Clique em **Deploy**. Na primeira inicialização o container:
-1. Aguarda o MySQL ficar disponível.
-2. Executa `php artisan erp:install` (migrações + seeders + admin).
-3. Inicia Nginx + PHP-FPM + queue worker + scheduler via Supervisor.
+## O que acontece no primeiro boot
 
-Acesse `https://erp.seudominio.com/admin` e faça login com o admin criado.
-
----
-
-## Opção B — Aplicação via Docker Compose
-
-1. **Applications → Create → Type: Docker Compose**
-2. Defina o compose file como `docker-compose.dokploy.yml`.
-3. Configure as mesmas variáveis de ambiente da Opção A.
-
----
-
-## Pós-instalação
-
-| Ação                                | Comando no terminal do container                |
-|-------------------------------------|--------------------------------------------------|
-| Trocar a senha do admin imediatamente | `php artisan tinker` → alterar o usuário admin |
-| Rodar migrations manuais            | `php artisan migrate --force`                   |
-| Limpar cache                        | `php artisan optimize:clear`                    |
-| Status dos serviços (Supervisor)    | `supervisorctl status`                          |
+1. O serviço **MySQL** sobe e cria o banco `aureus` + usuário automaticamente.
+2. O serviço **app** aguarda o MySQL ficar saudável (`healthcheck`).
+3. O `entrypoint.sh` gera a `APP_KEY`, executa `php artisan erp:install`
+   (migrações + seeders + admin) e inicia Nginx + PHP-FPM + queue + scheduler.
+4. Acesse `https://erp.seudominio.com/admin` e faça login com o admin criado.
 
 ## Persistência
 
-Monte um volume em `/var/www/aureuserp/storage` para preservar
-uploads, sessões e logs entre reinícios.
+O compose declara dois volumes nomeados (preservam dados entre reinícios):
 
-## Idioma
+| Volume            | Container path                       | Conteúdo                |
+|-------------------|--------------------------------------|-------------------------|
+| `aureus-mysql`    | `/var/lib/mysql`                     | Banco de dados          |
+| `aureus-storage`  | `/var/www/aureuserp/storage`         | Uploads, sessões, logs  |
 
-O locale **pt_BR** (Português do Brasil) já vem instalado e é o padrão.
-Altere em tempo de execução com a variável `APP_LOCALE` ou pelo seletor
-de idioma no painel administrativo.
+## Variáveis disponíveis
+
+| Variável          | Default                | Descrição                          |
+|-------------------|------------------------|------------------------------------|
+| `APP_NAME`        | `AureusERP`            | Nome da aplicação                  |
+| `APP_URL`         | `http://localhost`     | URL pública                        |
+| `APP_LOCALE`      | `pt_BR`                | Idioma (Português do Brasil)       |
+| `APP_CURRENCY`    | `BRL`                  | Moeda padrão                       |
+| `APP_TIMEZONE`    | `America/Sao_Paulo`    | Fuso horário                       |
+| `DB_DATABASE`     | `aureus`               | Nome do banco                      |
+| `DB_USERNAME`     | `aureus`               | Usuário do banco                   |
+| `DB_PASSWORD`     | `aureus`               | Senha do banco                     |
+| `DB_ROOT_PASSWORD`| `root-secret-change-me`| Senha root do MySQL                |
+| `ADMIN_NAME`      | `Administrador`        | Nome do admin inicial              |
+| `ADMIN_EMAIL`     | `admin@example.com`    | E-mail do admin inicial            |
+| `ADMIN_PASSWORD`  | `password`             | Senha do admin inicial             |
+
+## Desenvolvimento local
+
+Para desenvolvimento local com Laravel Sail, use o arquivo separado:
+
+```bash
+docker compose -f docker-compose.sail.yml up -d
+```
+
+Ou simplesmente `composer run dev` (PHP + Vite + queue + logs).
