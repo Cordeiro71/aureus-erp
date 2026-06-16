@@ -31,7 +31,6 @@ RUN apt-get update && apt-get install -y \
     && add-apt-repository ppa:ondrej/php -y \
     && apt-get update && apt-get install -y \
         imagemagick \
-        libmagickwand-dev \
         nginx \
         supervisor \
     && rm -rf /var/lib/apt/lists/*
@@ -45,6 +44,7 @@ RUN apt-get update && apt-get install -y \
         php${PHP_VERSION}-fpm \
         php${PHP_VERSION}-gd \
         php${PHP_VERSION}-gmp \
+        php${PHP_VERSION}-imagick \
         php${PHP_VERSION}-intl \
         php${PHP_VERSION}-mbstring \
         php${PHP_VERSION}-mysql \
@@ -53,19 +53,6 @@ RUN apt-get update && apt-get install -y \
         php${PHP_VERSION}-zip \
         php-pear \
     && rm -rf /var/lib/apt/lists/*
-
-RUN pecl channel-update pecl.php.net \
-    && mkdir -p /tmp/imagick-build && cd /tmp/imagick-build \
-    && pecl download imagick \
-    && tar xzf imagick-*.tgz \
-    && cd imagick-*/ \
-    && phpize${PHP_VERSION} \
-    && ./configure --with-php-config=/usr/bin/php-config${PHP_VERSION} \
-    && make -j"$(nproc)" \
-    && make install \
-    && echo "extension=imagick.so" > /etc/php/${PHP_VERSION}/mods-available/imagick.ini \
-    && phpenmod -v ${PHP_VERSION} imagick \
-    && rm -rf /tmp/imagick-build
 
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
     && apt-get install -y nodejs \
