@@ -60,53 +60,121 @@ if ! grep -q "^APP_KEY=base64:" .env 2>/dev/null || [ -z "$(grep '^APP_KEY=' .en
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Run DB migrations in the BACKGROUND so nginx starts immediately
+# 3. Run DB setup in the BACKGROUND so nginx starts immediately.
+#    Key fixes vs. previous version:
+#    - Wait up to 180s for MySQL (was 120)
+#    - Run erp:install with up to 3 retries (was 1 attempt)
+#    - ONLY create .installed flag if install SUCCEEDS (was always created)
+#    - On failure, retry on next container restart
 # ---------------------------------------------------------------------------
 (
-    log "[background] Waiting for database at ${DB_HOST}:${DB_PORT}..."
-    for i in $(seq 1 120); do
-        if php -r "try { new PDO('${DB_CONNECTION}:host=${DB_HOST};port=${DB_PORT}', '${DB_USERNAME}', '${DB_PASSWORD}'); } catch (Throwable \$e) { exit(1); }" 2>/dev/null; then
-            log "[background] Database is reachable."
+    # ---- 3a. Wait for database to be truly ready ----
+    log "[setup] Waiting for database at ${DB_HOST}:${DB_PORT}..."
+    DB_READY=false
+    for i in $(seq 1 180); do
+        if php -r "
+            try {
+                \$pdo = new PDO(
+                    '${DB_CONNECTION}:host=${DB_HOST};port=${DB_PORT}',
+                    '${DB_USERNAME}',
+                    '${DB_PASSWORD}',
+                    [PDO::ATTR_TIMEOUT => 3]
+                );
+                \$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                \$pdo->exec('SELECT 1');
+                exit(0);
+            } catch (Throwable \$e) {
+                exit(1);
+            }
+        " 2>/dev/null; then
+            log "[setup] Database is ready and accepting queries."
+            DB_READY=true
             break
         fi
-        if [ "$i" -eq 120 ]; then
-            log "[background] WARNING: cannot reach database after 120s — app will retry on next restart."
-            exit 0
+        if [ "$((i % 15))" -eq 0 ]; then
+            log "[setup] Still waiting for database... (${i}s elapsed)"
         fi
         sleep 1
     done
 
-    log "[background] Ensuring database '${DB_DATABASE}' exists..."
-    php -r "\$pdo = new PDO('${DB_CONNECTION}:host=${DB_HOST};port=${DB_PORT}', '${DB_USERNAME}', '${DB_PASSWORD}'); \$pdo->exec(\"CREATE DATABASE IF NOT EXISTS \`${DB_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci\");" 2>/dev/null || true
-
-    log "[background] Clearing cache..."
-    php artisan optimize:clear --no-interaction 2>/dev/null || true
-
-    INSTALL_FLAG="/var/www/aureuserp/storage/app/.installed"
-    if [ ! -f "$INSTALL_FLAG" ]; then
-        log "[background] First boot — running erp:install..."
-        APP_ENV=local php artisan erp:install --force --no-interaction \
-            --admin-name="${ADMIN_NAME:-Administrator}" \
-            --admin-email="${ADMIN_EMAIL:-admin@example.com}" \
-            --admin-password="${ADMIN_PASSWORD:-password}" \
-            2>&1 || log "[background] WARNING: erp:install failed — check DB connection."
-        touch "$INSTALL_FLAG"
-    else
-        log "[background] Running migrations..."
-        php artisan migrate --force --no-interaction 2>&1 || true
+    if [ "$DB_READY" = false ]; then
+        log "[setup] ERROR: Database not reachable after 180s. Will retry on next restart."
+        exit 1
     fi
 
-    log "[background] Caching config..."
+    # ---- 3b. Ensure the database exists ----
+    log "[setup] Ensuring database '${DB_DATABASE}' exists..."
+    php -r "
+        \$pdo = new PDO(
+            '${DB_CONNECTION}:host=${DB_HOST};port=${DB_PORT}',
+            '${DB_USERNAME}',
+            '${DB_PASSWORD}'
+        );
+        \$pdo->exec(\"CREATE DATABASE IF NOT EXISTS \`${DB_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci\");
+    " 2>/dev/null || true
+
+    # ---- 3c. Clear caches before install ----
+    log "[setup] Clearing caches..."
+    php artisan optimize:clear --no-interaction 2>/dev/null || true
+
+    # ---- 3d. Run erp:install (with retries) or just migrate ----
+    INSTALL_FLAG="/var/www/aureuserp/storage/app/.installed"
+
+    if [ ! -f "$INSTALL_FLAG" ]; then
+        log "[setup] First boot — running erp:install with retry logic..."
+
+        MAX_RETRIES=5
+        INSTALL_SUCCESS=false
+
+        for attempt in $(seq 1 $MAX_RETRIES); do
+            log "[setup] erp:install attempt ${attempt}/${MAX_RETRIES}..."
+
+            if APP_ENV=local php artisan erp:install \
+                --force \
+                --no-interaction \
+                --admin-name="${ADMIN_NAME:-Administrador}" \
+                --admin-email="${ADMIN_EMAIL:-admin@example.com}" \
+                --admin-password="${ADMIN_PASSWORD:-password}" \
+                2>&1; then
+
+                log "[setup] erp:install SUCCEEDED on attempt ${attempt}."
+                INSTALL_SUCCESS=true
+                touch "$INSTALL_FLAG"
+                break
+            else
+                log "[setup] erp:install FAILED on attempt ${attempt}/${MAX_RETRIES}."
+
+                if [ "$attempt" -lt "$MAX_RETRIES" ]; then
+                    log "[setup] Waiting 15s before retry..."
+                    sleep 15
+
+                    log "[setup] Flushing caches before retry..."
+                    php artisan optimize:clear --no-interaction 2>/dev/null || true
+                fi
+            fi
+        done
+
+        if [ "$INSTALL_SUCCESS" = false ]; then
+            log "[setup] ERROR: erp:install failed after ${MAX_RETRIES} attempts."
+            log "[setup] NOT creating .installed flag — will retry full install on next restart."
+            log "[setup] Check that the MySQL service is healthy and env vars are correct."
+        fi
+    else
+        log "[setup] Already installed — running pending migrations..."
+        php artisan migrate --force --no-interaction 2>&1 || log "[setup] WARNING: migrate returned non-zero."
+    fi
+
+    # ---- 3e. Cache config after setup ----
+    log "[setup] Caching configuration..."
     php artisan config:cache --no-interaction 2>/dev/null || true
     php artisan event:cache --no-interaction 2>/dev/null || true
     php artisan view:cache --no-interaction 2>/dev/null || true
 
-    log "[background] Database setup complete."
+    log "[setup] Background setup complete."
 ) &
 
 # ---------------------------------------------------------------------------
 # 4. Start Supervisor (nginx + php-fpm + queue + scheduler) IMMEDIATELY
-#    The web server is up right away; migrations continue in the background.
 # ---------------------------------------------------------------------------
 log "Starting services via Supervisor (nginx on port 8091)..."
 exec "$@"
