@@ -4,8 +4,8 @@
 # Dokploy detects this file automatically and runs:
 #   docker compose -f ./docker-compose.yml up -d --build
 #
-# App listens on port 8080 (avoids conflicts with other Dokploy apps).
-# In Dokploy UI → Domains: select service "app", port "8080".
+# App listens on port 8091.  In Dokploy UI → Domains:
+#   Service: app    Port: 8091
 #
 # Local development: use docker-compose.sail.yml instead.
 ########################################################################
@@ -15,10 +15,9 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
+    expose:
       - "8091"
     environment:
-      # Application
       APP_NAME: ${APP_NAME:-AureusERP}
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: ${APP_DEBUG:-false}
@@ -26,21 +25,15 @@ services:
       APP_LOCALE: ${APP_LOCALE:-pt_BR}
       APP_CURRENCY: ${APP_CURRENCY:-BRL}
       APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
-
-      # Database — points to the db service below
       DB_CONNECTION: mysql
       DB_HOST: db
       DB_PORT: 3306
       DB_DATABASE: ${DB_DATABASE:-aureus}
       DB_USERNAME: ${DB_USERNAME:-aureus}
       DB_PASSWORD: ${DB_PASSWORD:-aureus}
-
-      # Admin account created on first boot
       ADMIN_NAME: ${ADMIN_NAME:-Administrador}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-password}
-
-      # Optional: Mail
       MAIL_MAILER: ${MAIL_MAILER:-log}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-hello@example.com}
     volumes:
@@ -48,12 +41,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8091/health"]
-      interval: 30s
-      timeout: 5s
-      start_period: 120s
-      retries: 5
+    networks:
+      - dokploy-network
+      - internal
 
   db:
     image: mysql/mysql-server:8.0
@@ -66,12 +56,19 @@ services:
       MYSQL_ROOT_HOST: "%"
     volumes:
       - aureus-mysql:/var/lib/mysql
+    networks:
+      - internal
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 40s
+
+networks:
+  dokploy-network:
+    external: true
+  internal:
 
 volumes:
   aureus-storage:
